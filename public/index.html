@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>旅行攻略工具 · jerry的小笔记</title>
+  <link rel="stylesheet" href="/vendor/leaflet.css"><link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="masthead"><div class="brand"><span class="brand-dot">J</span><span>jerry的小笔记</span></div><div class="mastnote">让下一趟旅行，有条理一点</div><span class="local-label">本地规划 · 无需 API Key</span></header>
+  <main class="workspace">
+    <aside class="settings">
+      <p class="eyebrow">YOUR NEXT JOURNEY</p><h1>去哪儿，<br>你来决定。</h1><p class="intro">填好条件，排出一份能继续修改的行程。</p>
+      <form id="trip-form">
+        <label for="destination">目的地</label><input id="destination" list="destinations" value="巴黎" autocomplete="off"><datalist id="destinations"><option value="巴黎"><option value="新加坡"><option value="马尔代夫"></datalist>
+        <div class="form-row"><div><label for="days">旅行天数</label><input id="days" type="number" min="1" max="14" value="2" list="day-counts"><datalist id="day-counts"><option value="2"><option value="3"><option value="4"><option value="5"><option value="7"></datalist></div><div><label for="people">同行人数</label><input id="people" type="number" min="1" max="12" value="2" list="people-counts"><datalist id="people-counts"><option value="1"><option value="2"><option value="3"><option value="4"></datalist></div></div>
+        <label for="budget">总预算 / 人民币</label><input id="budget" type="number" min="0" max="1000000" value="12000" list="budgets"><datalist id="budgets"><option value="5000"><option value="8000"><option value="12000"><option value="20000"><option value="30000"></datalist>
+        <label for="pace">旅行节奏</label><input id="pace" value="适中" list="paces" autocomplete="off"><datalist id="paces"><option value="轻松"><option value="适中"><option value="充实"></datalist>
+        <details id="more-settings"><summary>日期、住宿与额外预留</summary><label for="startDate">出发日期 / 可留空</label><input id="startDate" type="date"><label for="hotel">住宿区域 / 仅作备忘</label><input id="hotel" list="hotels" placeholder="未填写，也能先做计划" maxlength="120"><datalist id="hotels"><option value="市中心附近"><option value="机场附近"><option value="度假酒店待定"></datalist><label for="reserve">机票、接送等额外预留 / 元</label><input id="reserve" type="number" min="0" max="1000000" value="0" list="reserves"><datalist id="reserves"><option value="0"><option value="3000"><option value="6000"><option value="10000"></datalist></details>
+        <button class="primary generate" type="submit">生成我的行程 <span>↗</span></button>
+      </form>
+      <p class="quiet">三种方式都能操作<br>选项选择、手动输入、语音命令</p>
+    </aside>
+    <section class="trip-panel">
+      <div class="trip-heading"><div><p id="country" class="eyebrow">FRANCE</p><h2 id="trip-title">巴黎 · 2天</h2></div><div class="file-actions"><button id="save" title="保存到本机浏览器">保存</button><button id="restore">恢复</button><button id="export">导出</button></div></div>
+      <div id="summary" class="summary"></div>
+      <nav id="days-nav" aria-label="每日行程"></nav>
+      <div id="day-heading" class="day-heading"></div>
+      <div id="itinerary" class="itinerary"></div>
+      <div class="add-place"><label for="place-choice">添加想去的地方</label><div class="inline"><input id="place-choice" list="places" placeholder="选择或输入景点"><datalist id="places"></datalist><button id="add-place">添加</button></div></div>
+      <details class="budget-details"><summary id="budget-summary">预算明细</summary><div id="budget-breakdown"></div><p>费用是可编辑的预算占位，非实时票价。国际机票、保险、购物、跨岛接送需计入额外预留。</p></details>
+    </section>
+    <section class="map-panel" aria-label="旅行地图">
+      <div id="map"></div><div class="map-caption"><strong>每一天，都在地图上看清楚</strong><span>虚线仅示意地点顺序，非道路导航</span></div>
+      <div id="map-status" class="map-status" hidden></div><div id="travel-note" class="travel-note"></div>
+    </section>
+  </main>
+  <section class="command-bar" aria-label="统一操作栏">
+    <div class="command-title"><strong>想改哪里？</strong><small>选一个，打出来，或说出来</small></div>
+    <label class="sr-only" for="quick-action">操作下拉选项</label><select id="quick-action"><option value="">选择操作…</option><option value="生成行程">生成行程</option><option value="保存行程">保存行程</option><option value="恢复行程">恢复行程</option><option value="导出行程">导出行程</option><option value="撤销">撤销上一步</option><option value="查看第一天">查看第一天</option><option value="查看第二天">查看第二天</option><option value="第二天下雨">假设第二天下雨</option><option value="取消第二天下雨">取消第二天下雨</option><option value="节奏轻松">节奏改为轻松</option><option value="预算改成8000">预算改成8000</option><option value="切换目的地巴黎">切换到巴黎</option><option value="切换目的地新加坡">切换到新加坡</option><option value="切换目的地马尔代夫">切换到马尔代夫</option></select>
+    <form id="command-form"><label class="sr-only" for="command">文字或语音命令</label><input id="command" placeholder="例如：把卢浮宫移到第二天" autocomplete="off" maxlength="200"><button id="mic" type="button" aria-label="开始语音输入" title="浏览器语音识别，可能联网处理语音">语音</button><button class="primary" type="submit">执行</button></form>
+    <button id="undo" title="撤销最近一次修改">撤销</button><button id="help" title="查看命令示例">?</button>
+  </section>
+  <div id="status" role="status" aria-live="polite">演示条件，不含真实订单。先选目的地，再生成行程。</div>
+  <dialog id="help-dialog"><button id="close-help" class="close" aria-label="关闭帮助">×</button><h2>你可以这样操作</h2><p>每个操作都可以用选项或键盘完成。点击“语音”后说同样的命令。</p><div class="help-examples"></div><p class="privacy">行程只保存在本机浏览器，未上传。语音识别由浏览器提供，可能将音频发送给其在线识别服务。本工具不保存原始音频。地图服务会接收到请求的地图区域。</p><p>当前内置巴黎、新加坡、马尔代夫。景点坐标为中心附近展示点。日期不自动核对开放时间，住宿区域仅作备忘，不作为路线起点。未接入实时天气、航班、价格或道路导航。</p></dialog>
+  <script src="/vendor/leaflet.js"></script><script type="module" src="/app.js"></script>
+</body></html>
