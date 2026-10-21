@@ -6,6 +6,7 @@ export function initialState(destination='paris') {
   return {version:1,destination,days:d.defaultDays,people:2,budget:12000,startDate:'',pace:destination==='maldives'?'relaxed':'balanced',hotel:'',selectedIds:[...d.defaultIds],plan:[],activeDay:1,rainDays:[],reserve:0,layover:0,canEnter:'unknown'};
 }
 export function clampNumber(value,min,max,label){const n=Number(value);if(!Number.isFinite(n)||n<min||n>max)throw new Error(`${label}需在${min}至${max}之间`);return n;}
+function dayNumber(value,s){const n=clampNumber(value,1,s.days,'天序');if(!Number.isInteger(n))throw new Error('天序需为整数');return n;}
 export function validateState(raw){
   if(!raw||typeof raw!=='object'||!DESTINATIONS[raw.destination])throw new Error('存档目的地无效');
   const s={...initialState(raw.destination),...raw};
@@ -24,7 +25,7 @@ export function validateState(raw){
   if(!Array.isArray(s.plan)||s.plan.length>s.days)throw new Error('存档行程无效');
   const seen=new Set();s.plan=s.plan.map((day,i)=>{if(!day||day.day!==i+1||!Array.isArray(day.ids))throw new Error('存档天序无效');for(const id of day.ids){if(!s.selectedIds.includes(id)||seen.has(id))throw new Error('存档景点重复或无效');seen.add(id);}return {day:i+1,ids:[...day.ids]};});
   if(s.plan.length && (s.plan.length!==s.days||seen.size!==s.selectedIds.length))throw new Error('存档行程不完整');
-  s.activeDay=Math.max(1,Math.min(s.days,Number(s.activeDay)||1));return s;
+  s.activeDay=dayNumber(s.activeDay,s);return s;
 }
 export function distanceKm(a,b){if(!a||!b||a.lat===null||b.lat===null)return null;const r=Math.PI/180;const h=Math.sin((b.lat-a.lat)*r/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin((b.lng-a.lng)*r/2)**2;return 6371*2*Math.asin(Math.sqrt(Math.min(1,h)));}
 export function getPoint(s,id){return DESTINATIONS[s.destination].points.find(p=>p.id===id);}
@@ -52,11 +53,11 @@ export function applyAction(raw,action){
   if(a.type==='destination')return initialState(a.value);
   if(a.type==='patch'){const changedDays=a.value.days!==undefined&&Number(a.value.days)!==s.days;const changedPace=a.value.pace!==undefined&&a.value.pace!==s.pace;s={...s,...a.value};if(changedDays){s.plan=[];s.rainDays=s.rainDays.filter(d=>d<=s.days);s.activeDay=1;}s=validateState(s);if(changedDays||(raw.plan.length&&changedPace))return generatePlan(s);return s;}
   if(a.type==='generate')return generatePlan(s);
-  if(a.type==='view'){s.activeDay=clampNumber(a.day,1,s.days,'天序');return s;}
-  if(a.type==='rain'){const n=clampNumber(a.day,1,s.days,'天序');if(a.clear)s.rainDays=s.rainDays.filter(d=>d!==n);else if(!s.rainDays.includes(n))s.rainDays.push(n);return generatePlan(s);}
+  if(a.type==='view'){s.activeDay=dayNumber(a.day,s);return s;}
+  if(a.type==='rain'){const n=dayNumber(a.day,s);if(a.clear)s.rainDays=s.rainDays.filter(d=>d!==n);else if(!s.rainDays.includes(n))s.rainDays.push(n);return generatePlan(s);}
   if(a.type==='add'){if(!getPoint(s,a.id))throw new Error('未找到这个景点');if(s.selectedIds.includes(a.id))throw new Error('这个景点已经在行程里');s.selectedIds.push(a.id);s.plan=[];return generatePlan(s);}
   if(a.type==='remove'){if(!s.selectedIds.includes(a.id))throw new Error('这个景点不在行程里');s.selectedIds=s.selectedIds.filter(id=>id!==a.id);s.plan=s.plan.map(d=>({...d,ids:d.ids.filter(id=>id!==a.id)}));return s.plan.length?s:generatePlan(s);}
-  if(a.type==='move'){if(!s.plan.length)throw new Error('请先生成行程');if(!s.selectedIds.includes(a.id))throw new Error('这个景点不在行程里');const day=clampNumber(a.day,1,s.days,'天序');s.plan.forEach(d=>d.ids=d.ids.filter(id=>id!==a.id));s.plan[day-1].ids.push(a.id);s.activeDay=day;return s;}
+  if(a.type==='move'){if(!s.plan.length)throw new Error('请先生成行程');if(!s.selectedIds.includes(a.id))throw new Error('这个景点不在行程里');const day=dayNumber(a.day,s);s.plan.forEach(d=>d.ids=d.ids.filter(id=>id!==a.id));s.plan[day-1].ids.push(a.id);s.activeDay=day;return s;}
   if(a.type==='reorder'){if(!s.plan.length)throw new Error('请先生成行程');const day=s.plan.find(d=>d.ids.includes(a.id));if(!day)throw new Error('未找到景点');const from=day.ids.indexOf(a.id),to=from+(a.direction==='up'?-1:1);if(to<0||to>=day.ids.length)throw new Error('已经在当天的最前或最后');[day.ids[from],day.ids[to]]=[day.ids[to],day.ids[from]];return s;}
   throw new Error('不支持的操作');
 }
@@ -64,7 +65,7 @@ const cn={'零':0,'一':1,'二':2,'两':2,'三':3,'四':4,'五':5,'六':6,'七':
 export function numberFromText(v){if(/^\d+(\.\d+)?$/.test(v))return Number(v);if(v.includes('万')){const [a,b]=v.split('万');return numberFromText(a)*10000+(b?numberFromText(b):0);}if(v.includes('千')){const [a,b]=v.split('千');return numberFromText(a)*1000+(b?numberFromText(b):0);}if(v.includes('百')){const [a,b]=v.split('百');return numberFromText(a)*100+(b?numberFromText(b):0);}if(v.includes('十')){const [a,b]=v.split('十');return (a?cn[a]:1)*10+(b?cn[b]:0);}if(Object.hasOwn(cn,v))return cn[v];throw new Error('数字没识别清楚，请使用阿拉伯数字');}
 const NUM='([零一二两三四五六七八九十百千万\\d.]+)';
 export function parseCommand(input,s){
-  let t=String(input).trim().replace(/[，。！？、,!?]/g,' ').replace(/\s+/g,' ');if(!t)throw new Error('请先输入一句操作');
+  let t=String(input).normalize('NFKC').trim().replace(/(\d),(?=\d{3}(?:\D|$))/g,'$1').replace(/[，。！？、,!?]/g,' ').replace(/\s+/g,' ');if(!t)throw new Error('请先输入一句操作');
   const destination=Object.entries(DESTINATIONS).find(([,d])=>t.includes(d.name));
   if(destination&&/(切换|目的地|去|选择)/.test(t))return [{type:'destination',value:destination[0]}];
   const point=DESTINATIONS[s.destination].points.find(p=>t.includes(p.name)) || DESTINATIONS[s.destination].points.find(p=>p.id==='eiffel'&&t.includes('铁塔'));
